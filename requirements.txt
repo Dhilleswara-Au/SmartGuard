@@ -1,0 +1,13 @@
+flask>=3.0.0
+opencv-python>=4.8.0
+requests>=2.31.0
+numpy>=1.24.0,<2.0.0
+face_recognition>=1.3.0
+python-dotenv>=1.0.0
+
+# Production WSGI server. Use instead of `python app.py` for LAN or Ngrok demos:
+#   python -m waitress --host=0.0.0.0 --port=5000 app:app
+waitress>=3.0.0
+
+# Optional: build dependency for face_recognition (dlib). Install system CMake if pip install fails.
+cmake>=3.20.0

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartGuard | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;       /* Deep Slate */
+            --card-bg: #1e293b;       /* Lighter Slate for contrast */
+            --accent-color: #3b82f6;  /* Vibrant Blue */
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;     /* Crisp White */
+            --text-muted: #cbd5e1;
+            --border-color: #334155;
+        }
+
+        body { 
+            background-color: var(--bg-dark);
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Navbar Styling */
+        .navbar { 
+            background: var(--card-bg); 
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .navbar-brand { font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; color: var(--text-main) !important; }
+        .brand-icon { color: var(--accent-color); font-size: 1.4rem; filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4)); }
+
+        /* Card Styling */
+        .card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            margin-bottom: 25px; 
+        }
+        .card-header { 
+            background-color: rgba(0,0,0,0.15); 
+            border-bottom: 1px solid var(--border-color); 
+            font-weight: 600; 
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+        .card-body { padding: 24px; }
+
+        /* Form & Inputs */
+        .form-label { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
+        .form-control { 
+            background-color: #0f172a;
+            border: 1px solid var(--border-color); 
+            color: var(--text-main); 
+            border-radius: 8px;
+            padding: 12px 15px;
+        }
+        .form-control:focus { 
+            background-color: #0f172a; 
+            color: var(--text-main); 
+            border-color: var(--accent-color); 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); 
+        }
+        .form-control::placeholder { color: #64748b; }
+
+        /* Custom File Input */
+        input[type="file"]::file-selector-button {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin-right: 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        input[type="file"]::file-selector-button:hover { background-color: rgba(59, 130, 246, 0.25); }
+
+        /* Buttons */
+        .btn-primary { 
+            background: var(--accent-color); border: none; padding: 12px; font-weight: 600; border-radius: 8px; transition: all 0.2s; color: white;
+        }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-outline-light { border-color: var(--border-color); border-radius: 6px; font-weight: 500; color: var(--text-muted); }
+        .btn-outline-light:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+        .btn-danger-custom { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+        .btn-danger-custom:hover { background: rgba(239, 68, 68, 0.25); color: #fecaca; }
+
+        /* Instruction Box */
+        .instruction-box { 
+            background: rgba(59, 130, 246, 0.1); 
+            border-left: 3px solid var(--accent-color); 
+            padding: 16px; 
+            border-radius: 8px; 
+            font-size: 0.9rem; 
+            color: #e2e8f0;
+            line-height: 1.5;
+        }
+
+        /* Status Indicators & Text Muting Fix */
+        .text-muted { color: var(--text-muted) !important; } /* Overrides Bootstrap's dark grey */
+        .status-container { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        #distance-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .status-badge { font-weight: 600; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; letter-spacing: 0.5px; }
+        
+        /* Table Styling */
+        .table { color: var(--text-main); margin-bottom: 0; }
+        .table th { background-color: rgba(0,0,0,0.1); border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 15px; }
+        .table td { border-bottom: 1px solid var(--border-color); padding: 15px; vertical-align: middle; background-color: transparent; }
+        .table tbody tr:hover td { background-color: rgba(255,255,255,0.03); }
+        .table tbody tr:last-child td { border-bottom: none; }
+
+        @media (max-width: 768px) {
+            .status-container { margin-top: 15px; width: 100%; justify-content: space-between; }
+            .action-buttons { margin-top: 15px; width: 100%; display: flex; gap: 10px; }
+            .action-buttons a { flex: 1; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg mb-5">
+    <div class="container d-flex flex-wrap align-items-center justify-content-between">
+        <a class="navbar-brand text-decoration-none" href="/">
+            <i class="fa-solid fa-shield-halved brand-icon"></i> SmartGuard Engine
+        </a>
+        
+        <div class="status-container">
+            <span id="distance-text"><i class="fa-solid fa-satellite-dish me-2"></i>Syncing GPS...</span>
+            <span id="status-badge" class="badge bg-secondary status-badge">INITIALIZING</span>
+        </div>
+
+        <div class="action-buttons d-flex gap-3">
+            <a href="/logs" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-list-ul me-2"></i>Logs</a>
+            <a href="/logout" class="btn btn-danger-custom btn-sm"><i class="fa-solid fa-right-from-bracket me-2"></i>Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+                    {% if category == 'success' %}
+                        <i class="fa-solid fa-circle-check me-2"></i>
+                    {% else %}
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fa-solid fa-user-plus text-primary"></i> Enrol / Update Resident
+                </div>
+                <div class="card-body">
+                    <div class="instruction-box mb-4">
+                        <i class="fa-solid fa-circle-info me-2 text-primary"></i>
+                        <strong>Record a 5-10 second video</strong> of your face. Turn your head slightly up, down, left, and right to capture all angles. <br><br>
+                        <span class="text-muted" style="font-size: 0.85rem;">Note: To update an existing resident, enter their exact name and upload a new video.</span>
+                    </div>
+                    
+                    <form action="/upload" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="mb-3">
+                            <label class="form-label">Resident Name</label>
+                            <input type="text" class="form-control" name="name" required placeholder="e.g., John Doe" autocomplete="off">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Upload Video Data (.mp4)</label>
+                            <input type="file" class="form-control" name="file" accept="video/mp4,video/x-m4v,video/*" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                            <i class="fa-solid fa-microchip me-2"></i>Process Video & Authorize
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fa-solid fa-users text-primary"></i> Authorized Database
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Subject Name</th>
+                                <th>Data Path</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for res in residents %}
+                            <tr>
+                                <td class="ps-4 text-muted">#{{ loop.index }}</td>
+                                <td class="fw-semibold">{{ res[1] }}</td>
+                                <td class="text-muted small text-truncate" style="font-family: monospace; max-width: 200px;" title="{{ res[2] }}">{{ res[2] }}</td>
+                                <td class="text-end pe-4">
+                                    <form action="/delete/{{ res[0] }}" method="POST" class="delete-resident-form" data-resident-name="{{ res[1] | e }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <button type="submit" class="btn btn-danger-custom">Revoke</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <i class="fa-solid fa-folder-open mb-3 text-muted" style="font-size: 2rem;"></i>
+                                    <p class="text-muted mb-0">Database empty. No residents enrolled yet.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateStatus() {
+        fetch('/get_system_status', {
+            headers: { 'X-API-KEY': '{{ api_key }}' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('status-badge');
+            const distanceText = document.getElementById('distance-text');
+            
+            if (data.devices_tracked === 0) {
+                distanceText.innerHTML = "<i class='fa-solid fa-satellite-dish me-2'></i>0 Devices Tracked. Waiting for GPS...";
+                badge.innerText = "INITIALIZING";
+                badge.className = "badge bg-secondary status-badge";
+            } else {
+                distanceText.innerHTML = `<i class='fa-solid fa-location-dot me-2 text-primary'></i>Closest Device: ${data.distance_meters}m <span class='text-muted ms-1'>(${data.devices_tracked} active)</span>`;
+                if (data.is_home) {
+                    badge.innerText = "PASSIVE (HOME)";
+                    badge.className = "badge bg-success status-badge text-white";
+                } else {
+                    badge.innerText = "ACTIVE (AWAY)";
+                    badge.className = "badge bg-danger status-badge text-white";
+                }
+            }
+        })
+        .catch(error => console.error('Error fetching status:', error));
+}
+setInterval(updateStatus, 3000);
+updateStatus();
+document.querySelectorAll('.delete-resident-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        var name = form.getAttribute('data-resident-name') || 'this resident';
+        if (!confirm('Revoke access for ' + name + '? This will permanently delete their face data.')) e.preventDefault();
+    });
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
