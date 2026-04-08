@@ -11,7 +11,7 @@ import threading
 import queue
 import winsound
 import json
-from collections import deque
+from collections import deque, Counter
 import numpy as np
 import face_recognition
 import glob
@@ -37,7 +37,7 @@ MAJOR_ALERT_AT_SEC = 30    # Seconds of unknown presence before triggering full 
 PERSISTENT_RESET_SEC = 60  # Seconds after a breach before all timers fully reset
 RE_TRIGGER_AFTER_SEC = 10  # Seconds before re-escalating during a persistent alert window
 VIDEO_RECORD_SEC = 15      # Duration of each breach recording clip in seconds
-FACE_MATCH_THRESHOLD = 0.50  # Distance threshold; lower = stricter matching
+FACE_MATCH_THRESHOLD = 0.50  # Reverted to 0.50 for better real-world matching
 
 TELEGRAM_TOKEN = os.getenv("SMARTGUARD_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("SMARTGUARD_TELEGRAM_CHAT_ID")
@@ -67,6 +67,9 @@ class SmartGuardDetector:
         self.is_processing_face = False
         self.last_known_identity = None
         self.current_display_text = "Initializing..."
+        
+        # Reduced buffer to 5 for much faster authorization (~1.5s to 2s)
+        self.prediction_buffer = deque(maxlen=5)
 
         # Video recording state
         self.is_recording = False
@@ -78,7 +81,6 @@ class SmartGuardDetector:
         )
 
     def _cleanup_old_media(self):
-        """Delete snapshots and videos older than 7 days to prevent unbounded storage growth."""
         now = time.time()
         for filename in os.listdir(STATIC_PATH):
             filepath = os.path.join(STATIC_PATH, filename)
@@ -89,7 +91,6 @@ class SmartGuardDetector:
                     pass
 
     def _log_event(self, event_type: str, status: str):
-        """Post a structured log entry to app.py asynchronously so the camera loop is never blocked."""
         def _do():
             try:
                 payload = {
@@ -103,20 +104,11 @@ class SmartGuardDetector:
                 pass
         threading.Thread(target=_do, daemon=True).start()
 
-    # --- Background Workers ---
-
     def _geofence_worker(self):
-        """
-        Poll /get_system_status every 2 s and update owner_is_home.
-        Also hot-reloads face profiles whenever the database folder changes,
-        and sends periodic heartbeat pings if SMARTGUARD_HEARTBEAT_URL is configured.
-        """
         last_heartbeat = 0
-        # Track the exact set of profile files so any add or delete is detected
         last_profile_files = set(glob.glob(f"{DB_PATH}/*/*_profile.npy"))
 
         while True:
-            # Hot-reload profiles if any file has been added or removed
             current_files = set(glob.glob(f"{DB_PATH}/*/*_profile.npy"))
             if current_files != last_profile_files:
                 print("[INFO] Database change detected. Hot-reloading profiles...")
@@ -132,7 +124,7 @@ class SmartGuardDetector:
                 r = requests.get(f"{BASE_URL}/get_system_status", headers=headers, timeout=2)
                 self.owner_is_home = r.json().get("is_home", False)
             except Exception:
-                pass  # Silently ignore transient network errors to avoid false alarms
+                pass 
 
             if HEARTBEAT_URL and (time.time() - last_heartbeat) > 60:
                 try:
@@ -143,7 +135,6 @@ class SmartGuardDetector:
             time.sleep(2)
 
     def _siren_worker(self):
-        """Play alarm.wav in a loop while is_alarm_active; fall back to system beeps if the file is absent."""
         playing = False
         while True:
             if self.is_alarm_active and not playing:
@@ -160,10 +151,6 @@ class SmartGuardDetector:
             time.sleep(0.2)
 
     def _telegram_worker(self):
-        """
-        Long-poll Telegram for inline button presses and update detector state accordingly.
-        Handles: authorize_guest, force_alarm, disarm_system.
-        """
         offset = None
         while True:
             if not TELEGRAM_TOKEN:
@@ -191,7 +178,6 @@ class SmartGuardDetector:
                     ans_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery"
 
                     def provide_feedback(toast_msg, permanent_msg):
-                        """Show a popup on the user's phone and remove the inline buttons from the message."""
                         try:
                             requests.get(
                                 ans_url,
@@ -233,14 +219,20 @@ class SmartGuardDetector:
                 pass
             time.sleep(2)
 
-    # --- Vision & Processing ---
+    def _get_stable_identity(self):
+        """Returns the recognized identity if majority match, else None."""
+        if len(self.prediction_buffer) < 3:
+            return None
+
+        counts = Counter(self.prediction_buffer)
+        most_common, freq = counts.most_common(1)[0]
+
+        # Require a majority (at least 3 out of 5 frames) to be a known person
+        if most_common != "unknown" and freq >= 3:
+            return most_common
+        return None
 
     def _process_face_background(self, frame_copy):
-        """
-        Compare the first detected face in frame_copy against all known profiles.
-        Updates last_known_identity and current_display_text.
-        Always resets is_processing_face in the finally block so the main loop can queue another call.
-        """
         try:
             rgb = cv2.cvtColor(frame_copy, cv2.COLOR_BGR2RGB)
             locations = face_recognition.face_locations(rgb, model="hog")
@@ -261,19 +253,14 @@ class SmartGuardDetector:
                     best_name = name
 
             if best_name:
-                self.current_display_text = f"AUTHORIZED: {best_name}"
-                self.last_known_identity = best_name
+                self.prediction_buffer.append(best_name)
             else:
-                self.last_known_identity = None
+                self.prediction_buffer.append("unknown")
+
         finally:
             self.is_processing_face = False
 
     def _video_writer_worker(self, filepath, frame_size, q, fps):
-        """
-        Consume frames from queue q and write them to an mp4 file.
-        Exits on None sentinel (normal end) or 'CANCEL' sentinel (alarm cleared early; deletes partial file).
-        Uploads the finished clip to Telegram if configured.
-        """
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(filepath, fourcc, fps, frame_size)
         cancelled = False
@@ -309,8 +296,6 @@ class SmartGuardDetector:
             except Exception:
                 pass
 
-    # --- Main Loop ---
-
     def start(self):
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -344,7 +329,7 @@ class SmartGuardDetector:
             if not ret:
                 print("[WARNING] Camera frame dropped. Retrying...")
                 time.sleep(2)
-                cap.release()  # Release before reassigning to avoid handle leak
+                cap.release()
                 cap = cv2.VideoCapture(0)
                 continue
 
@@ -379,6 +364,7 @@ class SmartGuardDetector:
                 area_clear = (time.time() - last_face_time) > AREA_CLEAR_SEC
 
                 if area_clear:
+                    self.prediction_buffer.clear()
                     self.current_display_text = "Scanning (Area Clear)..."
                     self.last_known_identity = None
 
@@ -389,31 +375,39 @@ class SmartGuardDetector:
 
                     major_alert_sent = False
 
-                    # Full state reset after the persistent-alert window expires
                     time_since_last_face = time.time() - last_face_time
                     if time_since_last_face > PERSISTENT_RESET_SEC:
                         self.guest_authorized = False
                         self.disarm_requested = False
                         self.force_escalation = False
-                        dwell_timer = None  # Prevents instant re-trigger on next appearance
+                        dwell_timer = None 
                         persistent_alert_active = prompt_sent = False
                 else:
-                    if self.last_known_identity or self.guest_authorized:
+                    stable_identity = self._get_stable_identity()
+                    current_time = time.time()
+
+                    # Clean Authorization Logic
+                    if stable_identity or self.guest_authorized:
+                        self.last_known_identity = stable_identity
                         dwell_timer = None
-                        self.is_alarm_active = prompt_sent = major_alert_sent = False
-                        self.current_display_text = f"AUTHORIZED: {self.last_known_identity or 'Guest'}"
+                        self.is_alarm_active = False
+                        prompt_sent = False
+                        major_alert_sent = False
+
+                        self.current_display_text = f"AUTHORIZED: {stable_identity or 'Guest'}"
 
                         if self.is_recording:
                             self.is_recording = False
                             for q in self.active_record_queues:
                                 q.put("CANCEL")
                             self.active_record_queues.clear()
+
                     else:
                         if dwell_timer is None:
-                            dwell_timer = time.time()
+                            dwell_timer = current_time
                             self.disarm_requested = False
 
-                        elapsed = time.time() - dwell_timer
+                        elapsed = current_time - dwell_timer
 
                         if self.disarm_requested:
                             self.current_display_text = "DISARMED VIA TELEGRAM"
@@ -429,7 +423,6 @@ class SmartGuardDetector:
                                 persistent_alert_active and elapsed > RE_TRIGGER_AFTER_SEC
                             )
 
-                            # Tier 1 (15 s): capture a snapshot and send a Telegram prompt with action buttons
                             if elapsed > PROMPT_AT_SEC and not prompt_sent and not trigger_now:
                                 prompt_sent = True
                                 snapshot_path = os.path.join(STATIC_PATH, f"snapshot_{int(time.time())}.jpg")
@@ -459,7 +452,6 @@ class SmartGuardDetector:
                                             pass
                                     threading.Thread(target=_send_photo, daemon=True).start()
 
-                            # Tier 2 (30 s or forced): sound the siren and begin breach recording
                             if (elapsed > MAJOR_ALERT_AT_SEC or trigger_now) and not major_alert_sent:
                                 self.is_alarm_active = True
                                 self._log_event("Security Breach", "Tier 2 Alarm Triggered")
@@ -530,7 +522,6 @@ class SmartGuardDetector:
             q.put(None)
         cap.release()
         cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     detector = SmartGuardDetector()
