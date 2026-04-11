@@ -22,7 +22,7 @@ try:
 except ImportError:
     pass
 
-# --- Configuration Constants ---
+# Configuration Constants
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database/")
 STATIC_PATH = os.path.join(BASE_DIR, "static/")
@@ -68,7 +68,6 @@ class SmartGuardDetector:
         self.last_known_identity = None
         self.current_display_text = "Initializing..."
         
-        # Reduced buffer to 5 for much faster authorization (~1.5s to 2s)
         self.prediction_buffer = deque(maxlen=5)
 
         # Video recording state
@@ -111,13 +110,16 @@ class SmartGuardDetector:
         while True:
             current_files = set(glob.glob(f"{DB_PATH}/*/*_profile.npy"))
             if current_files != last_profile_files:
-                print("[INFO] Database change detected. Hot-reloading profiles...")
-                new_profiles = {}
-                for path in current_files:
-                    name = os.path.basename(os.path.dirname(path))
-                    new_profiles[name] = np.load(path)
-                self.known_profiles = new_profiles
-                last_profile_files = current_files
+                try:
+                    new_profiles = {}
+                    for path in current_files:
+                        name = os.path.basename(os.path.dirname(path))
+                        new_profiles[name] = np.load(path)
+                    self.known_profiles = new_profiles
+                    last_profile_files = current_files
+                    print("[INFO] Database change detected. Hot-reloading profiles...")
+                except Exception:
+                    pass
 
             try:
                 headers = {"X-API-KEY": API_KEY} if API_KEY else {}
@@ -386,7 +388,6 @@ class SmartGuardDetector:
                     stable_identity = self._get_stable_identity()
                     current_time = time.time()
 
-                    # Clean Authorization Logic
                     if stable_identity or self.guest_authorized:
                         self.last_known_identity = stable_identity
                         dwell_timer = None

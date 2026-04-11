@@ -7,6 +7,8 @@ import os
 import sqlite3
 import datetime
 from math import sin, cos, sqrt, atan2, radians
+import secrets
+from contextlib import closing
 from werkzeug.utils import secure_filename
 import cv2
 import shutil
@@ -57,7 +59,9 @@ def _ensure_csrf():
 def _check_csrf():
     server_token = session.get("csrf_token")
     client_token = request.form.get("csrf_token")
-    return server_token is not None and server_token == client_token
+    if server_token is None or client_token is None:
+        return False
+    return secrets.compare_digest(server_token, client_token)
 
 
 def _env_float(name: str, default: str) -> float:
@@ -88,22 +92,23 @@ def inject_csrf():
 # -----------------------------------------------------------------------------
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS residents (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT)"
-        )
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS activity_log
-               (id INTEGER PRIMARY KEY, timestamp TEXT, event_type TEXT, status TEXT)"""
-        )
+    with closing(sqlite3.connect(DB_PATH, timeout=10)) as conn:
+        with conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS residents (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT)"
+            )
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS activity_log
+                   (id INTEGER PRIMARY KEY, timestamp TEXT, event_type TEXT, status TEXT)"""
+            )
 
 def _ensure_residents_schema():
     """Keep DB compatible across earlier column naming mistakes."""
-    with sqlite3.connect(DB_PATH) as conn:
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(residents)").fetchall()}
-        if "folder_path" in cols and "path" not in cols:
-            conn.execute("ALTER TABLE residents RENAME COLUMN folder_path TO path")
-            conn.commit()
+    with closing(sqlite3.connect(DB_PATH, timeout=10)) as conn:
+        with conn:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(residents)").fetchall()}
+            if "folder_path" in cols and "path" not in cols:
+                conn.execute("ALTER TABLE residents RENAME COLUMN folder_path TO path")
 
 
 init_db()
@@ -111,19 +116,19 @@ _ensure_residents_schema()
 
 
 def db_execute(query: str, args=(), many=False):
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
-        if many:
-            conn.executemany(query, args)
-        else:
-            conn.execute(query, args)
-        conn.commit()
+    with closing(sqlite3.connect(DB_PATH, timeout=10)) as conn:
+        with conn:
+            if many:
+                conn.executemany(query, args)
+            else:
+                conn.execute(query, args)
 
 def db_fetch(query: str, args=()):
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    with closing(sqlite3.connect(DB_PATH, timeout=10)) as conn:
         return conn.execute(query, args).fetchall()
 
 def db_fetchone(query: str, args=()):
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    with closing(sqlite3.connect(DB_PATH, timeout=10)) as conn:
         return conn.execute(query, args).fetchone()
 
 
@@ -431,4 +436,14 @@ if __name__ == "__main__":
     except (TypeError, ValueError):
         port = 5000
     host = "0.0.0.0" if debug else "127.0.0.1"
-    app.run(host=host, port=port, debug=debug)
+    
+    if debug:
+        app.run(host=host, port=port, debug=True)
+    else:
+        try:
+            from waitress import serve
+            print(f"[INFO] Server starting... Waitress binding to {host}:{port}")
+            serve(app, host=host, port=port)
+        except ImportError:
+            print("[WARNING] Waitress not installed. Using development server.")
+            app.run(host=host, port=port, debug=False)

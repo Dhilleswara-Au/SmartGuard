@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         :root {
             --bg-dark: #0f172a;       /* Deep Slate */
@@ -20,33 +21,40 @@
             --text-muted: #cbd5e1;    /* High-contrast light grey */
             --border-color: #334155;  /* Visible separator lines */
         }
-        
-        body { 
+
+        body {
             background-color: var(--bg-dark);
             background-image: radial-gradient(circle at 50% 0%, #1f1f2e 0%, transparent 70%);
-            color: var(--text-main); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            margin: 0; 
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
             font-family: 'Inter', sans-serif;
             overflow: hidden;
         }
 
         /* Subtle entrance animation */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* High-Contrast Card */
-        .remote-card { 
-            background: var(--card-bg); 
-            padding: 35px 25px; 
-            border-radius: 16px; 
-            width: 90%; 
-            max-width: 380px; 
+        .remote-card {
+            background: var(--card-bg);
+            padding: 35px 25px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 380px;
             border: 1px solid var(--border-color);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             text-align: center;
@@ -60,8 +68,19 @@
             filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.4));
         }
 
-        h3 { font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; margin-bottom: 5px; color: var(--text-main); }
-        p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px; }
+        h3 {
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -0.5px;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+        }
 
         /* Custom Toggle Switch */
         .switch-container {
@@ -74,18 +93,36 @@
             margin-bottom: 25px;
             border: 1px solid var(--border-color);
         }
-        
-        .form-check-input { width: 3em !important; height: 1.5em !important; cursor: pointer; background-color: #475569; border-color: #475569; }
-        .form-check-input:checked { background-color: var(--accent-color); border-color: var(--accent-color); }
-        .toggle-label { font-weight: 600; margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-main); }
+
+        .form-check-input {
+            width: 3em !important;
+            height: 1.5em !important;
+            cursor: pointer;
+            background-color: #475569;
+            border-color: #475569;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
 
         /* Modern Buttons */
-        .btn-custom { 
-            width: 100%; 
-            padding: 14px; 
-            margin-bottom: 15px; 
-            font-weight: 600; 
-            border-radius: 10px; 
+        .btn-custom {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-radius: 10px;
             border: none;
             transition: all 0.2s ease;
             display: flex;
@@ -93,20 +130,41 @@
             justify-content: center;
             gap: 10px;
         }
-        .btn-custom:active { transform: scale(0.97); }
-        
-        .btn-real { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .btn-real:hover, .btn-real:focus { background: rgba(16, 185, 129, 0.25); color: #a7f3d0; }
-        
-        .btn-sim { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
-        .btn-sim:hover, .btn-sim:focus { background: rgba(239, 68, 68, 0.25); color: #fecaca; }
+
+        .btn-custom:active {
+            transform: scale(0.97);
+        }
+
+        .btn-real {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-real:hover,
+        .btn-real:focus {
+            background: rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+
+        .btn-sim {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-sim:hover,
+        .btn-sim:focus {
+            background: rgba(239, 68, 68, 0.25);
+            color: #fecaca;
+        }
 
         /* Dynamic Status Area */
         #status-area {
             margin-top: 25px;
             padding: 12px;
             border-radius: 10px;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
             font-size: 0.85rem;
             font-weight: 500;
             display: flex;
@@ -116,26 +174,50 @@
             border: 1px solid var(--border-color);
             color: var(--text-muted);
         }
-        
+
         /* Text Color Overrides for Status */
-        .text-success-custom { color: #6ee7b7 !important; }
-        .text-danger-custom { color: #fca5a5 !important; }
-        .text-info-custom { color: #93c5fd !important; }
-        
+        .text-success-custom {
+            color: #6ee7b7 !important;
+        }
+
+        .text-danger-custom {
+            color: #fca5a5 !important;
+        }
+
+        .text-info-custom {
+            color: #93c5fd !important;
+        }
+
         /* Radar Animation for Auto-Sync */
         @keyframes pulse-ring {
-            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
-        .radar-active { animation: pulse-ring 2s infinite; border-radius: 50%; }
+            0% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
 
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+
+            100% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+
+        .radar-active {
+            animation: pulse-ring 2s infinite;
+            border-radius: 50%;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="remote-card">
-        <img src="/static/logo.jpg" alt="SmartGuard Logo" style="height: 75px; width: auto; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);">
+        <img src="/static/logo.jpg" alt="SmartGuard Logo"
+            style="height: 75px; width: auto; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);">
         <h3>SmartGuard</h3>
         <p class="subtitle">Secure Mobile Key</p>
 
@@ -144,7 +226,8 @@
                 <i class="fa-solid fa-satellite-dish" id="radar-icon"></i> Live Radar
             </label>
             <div class="form-check form-switch m-0 p-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="autoTrack" onchange="toggleAutoTrack()">
+                <input class="form-check-input" type="checkbox" role="switch" id="autoTrack"
+                    onchange="toggleAutoTrack()">
             </div>
         </div>
 
@@ -157,7 +240,7 @@
         </button>
 
         <div id="status-area">
-            <i class="fa-solid fa-circle-info"></i> 
+            <i class="fa-solid fa-circle-info"></i>
             <span id="status-text">System Idle</span>
         </div>
     </div>
@@ -170,40 +253,40 @@
             localStorage.setItem('smartguard_device_id', deviceId);
         }
 
-        let watchId = null; 
-        let lastSentTime = 0; 
-        
+        let watchId = null;
+        let lastSentTime = 0;
+
         const statusText = document.getElementById('status-text');
         const radarIcon = document.getElementById('radar-icon');
         const autoToggle = document.getElementById('autoTrack');
 
         function updateStatus(message, type) {
             statusText.textContent = message;
-            statusText.className = ""; 
-            if(type === 'success') statusText.classList.add('text-success-custom');
-            if(type === 'error') statusText.classList.add('text-danger-custom');
-            if(type === 'info') statusText.classList.add('text-info-custom');
+            statusText.className = "";
+            if (type === 'success') statusText.classList.add('text-success-custom');
+            if (type === 'error') statusText.classList.add('text-danger-custom');
+            if (type === 'info') statusText.classList.add('text-info-custom');
         }
 
         function postData(lat, lon, mode) {
             updateStatus(`Sending ${mode}...`, 'info');
             fetch('/update_location', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': '{{ api_key }}' 
+                    'X-API-KEY': '{{ api_key }}'
                 },
-                body: JSON.stringify({ lat: lat, lon: lon, device_id: deviceId }) 
+                body: JSON.stringify({ lat: lat, lon: lon, device_id: deviceId })
             })
-            .then(res => {
-                if (res.status === 401) {
-                    updateStatus("Unauthorized: Check API Key", "error");
-                    return;
-                }
-                return res.json();
-            })
-            .then(data => { if(data) updateStatus(`${mode} Synced!`, 'success'); })
-            .catch(err => { updateStatus(`Server Disconnected`, 'error'); });
+                .then(res => {
+                    if (res.status === 401) {
+                        updateStatus("Unauthorized: Check API Key", "error");
+                        return;
+                    }
+                    return res.json();
+                })
+                .then(data => { if (data) updateStatus(`${mode} Synced!`, 'success'); })
+                .catch(err => { updateStatus(`Server Disconnected`, 'error'); });
         }
 
         // NEW HELPER: Shuts down radar cleanly if it's currently running
@@ -216,12 +299,12 @@
 
         function sendRealLocation() {
             disableRadarIfActive(); // <-- Stops radar before manual sync
-            
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => { postData(pos.coords.latitude, pos.coords.longitude, "Manual GPS"); }, 
-                    (err) => { updateStatus(`GPS Failed: ${err.message}`, 'error'); }, 
-                    { enableHighAccuracy: true, timeout: 15000 } 
+                    (pos) => { postData(pos.coords.latitude, pos.coords.longitude, "Manual GPS"); },
+                    (err) => { updateStatus(`GPS Failed: ${err.message}`, 'error'); },
+                    { enableHighAccuracy: true, timeout: 15000 }
                 );
             } else {
                 updateStatus(`Browser not supported`, 'error');
@@ -238,22 +321,22 @@
                 radarIcon.classList.add('radar-active');
                 radarIcon.style.color = 'var(--accent-color)';
                 updateStatus(`Acquiring satellite lock...`, 'info');
-                
+
                 if (navigator.geolocation) {
                     watchId = navigator.geolocation.watchPosition(
-                        (pos) => { 
+                        (pos) => {
                             const now = Date.now();
                             if (now - lastSentTime >= 5000) {
-                                postData(pos.coords.latitude, pos.coords.longitude, "Auto-Sync"); 
-                                lastSentTime = now; 
+                                postData(pos.coords.latitude, pos.coords.longitude, "Auto-Sync");
+                                lastSentTime = now;
                             }
                         },
                         (err) => {
                             console.warn("GPS Error Code:", err.code, err.message);
                             if (err.code === 1) {
                                 updateStatus(`GPS Permission Denied`, 'error');
-                                autoToggle.checked = false; 
-                                toggleAutoTrack(); 
+                                autoToggle.checked = false;
+                                toggleAutoTrack();
                             } else {
                                 updateStatus(`GPS Signal Weak... Retrying`, 'info');
                             }
@@ -267,7 +350,7 @@
             } else {
                 radarIcon.classList.remove('radar-active');
                 radarIcon.style.color = 'inherit';
-                
+
                 if (watchId !== null) {
                     navigator.geolocation.clearWatch(watchId);
                     watchId = null;
@@ -277,4 +360,5 @@
         }
     </script>
 </body>
+
 </html>
