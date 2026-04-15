@@ -22,7 +22,7 @@ try:
 except ImportError:
     pass
 
-# Configuration Constants
+# --- Configuration Constants ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database/")
 STATIC_PATH = os.path.join(BASE_DIR, "static/")
@@ -70,6 +70,11 @@ class SmartGuardDetector:
         
         self.prediction_buffer = deque(maxlen=5)
 
+        # --- Telegram State Tracking ---
+        self.last_prompt_message_id = None
+        self.last_siren_message_id = None
+        self.last_video_message_id = None
+
         # Video recording state
         self.is_recording = False
         self.record_end_time = 0.0
@@ -102,6 +107,28 @@ class SmartGuardDetector:
             except Exception:
                 pass
         threading.Thread(target=_do, daemon=True).start()
+
+    def _nuke_telegram_buttons(self, reason_text):
+        """Finds any floating buttons in the chat and permanently removes them."""
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
+        
+        # Copy the IDs and instantly reset them so we don't double-nuke
+        p, s, v = self.last_prompt_message_id, self.last_siren_message_id, self.last_video_message_id
+        self.last_prompt_message_id = self.last_siren_message_id = self.last_video_message_id = None
+        
+        def _do_nuke():
+            if p:
+                try: requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/editMessageCaption", json={"chat_id": TELEGRAM_CHAT_ID, "message_id": p, "caption": f"❓ Unknown person detected. ({reason_text})", "reply_markup": {"inline_keyboard": []}}, timeout=5)
+                except: pass
+            if s:
+                try: requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/editMessageText", json={"chat_id": TELEGRAM_CHAT_ID, "message_id": s, "text": f"🚨 ALARM TRIGGERED! ({reason_text})", "reply_markup": {"inline_keyboard": []}}, timeout=5)
+                except: pass
+            if v:
+                try: requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/editMessageCaption", json={"chat_id": TELEGRAM_CHAT_ID, "message_id": v, "caption": f"📹 Intruder footage ({reason_text})", "reply_markup": {"inline_keyboard": []}}, timeout=5)
+                except: pass
+        
+        if any([p, s, v]):
+            threading.Thread(target=_do_nuke, daemon=True).start()
 
     def _geofence_worker(self):
         last_heartbeat = 0
@@ -201,21 +228,30 @@ class SmartGuardDetector:
                                 pass
 
                     if data == "authorize_guest":
+                        # If we clicked this specific message, clear it from the tracker so the nuke doesn't overwrite it
+                        if self.last_prompt_message_id == message_id: self.last_prompt_message_id = None
+                        
                         self.guest_authorized = True
                         self.is_alarm_active = False
                         self._log_event("Access", "Guest authorized via Telegram")
                         provide_feedback("✅ Guest Authorized!", "✅ Access Granted: Known Guest")
+                        self._nuke_telegram_buttons("Guest Authorized")
 
                     elif data == "force_alarm":
+                        if self.last_prompt_message_id == message_id: self.last_prompt_message_id = None
                         self.force_escalation = True
                         self._log_event("Security Breach", "Alarm forced via Telegram")
                         provide_feedback("🚨 Alarm Triggered!", "🚨 ACTION TAKEN: Alarm Forced")
 
                     elif data == "disarm_system":
+                        if self.last_siren_message_id == message_id: self.last_siren_message_id = None
+                        if self.last_video_message_id == message_id: self.last_video_message_id = None
+                        
                         self.is_alarm_active = False
                         self.disarm_requested = True
                         self._log_event("System", "Remotely disarmed via Telegram")
                         provide_feedback("🔇 System Disarmed!", "🔇 ACTION TAKEN: Siren Disarmed")
+                        self._nuke_telegram_buttons("Siren Disarmed")
 
             except Exception:
                 pass
@@ -289,12 +325,15 @@ class SmartGuardDetector:
             try:
                 with open(filepath, "rb") as f:
                     kb = {"inline_keyboard": [[{"text": "🔇 Disarm Siren", "callback_data": "disarm_system"}]]}
-                    requests.post(
+                    resp = requests.post(
                         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo",
                         data={"chat_id": TELEGRAM_CHAT_ID, "caption": "📹 Intruder footage", "reply_markup": json.dumps(kb)},
                         files={"video": f},
                         timeout=60
                     )
+                    # Track this specific video message ID
+                    if resp.status_code == 200:
+                        self.last_video_message_id = resp.json().get("result", {}).get("message_id")
             except Exception:
                 pass
 
@@ -342,6 +381,11 @@ class SmartGuardDetector:
                 self.current_display_text = "HOME (Passive Mode)"
                 self.is_alarm_active = self.disarm_requested = self.guest_authorized = self.force_escalation = False
                 dwell_timer = None
+                
+                # If we were previously escalating, clean up the chat
+                if prompt_sent or major_alert_sent:
+                    self._nuke_telegram_buttons("System Disarmed: Owner Home")
+                    
                 prompt_sent = major_alert_sent = False
 
                 if self.is_recording:
@@ -383,6 +427,11 @@ class SmartGuardDetector:
                         self.disarm_requested = False
                         self.force_escalation = False
                         dwell_timer = None 
+                        
+                        # Clean up chat on automatic reset
+                        if persistent_alert_active or prompt_sent:
+                            self._nuke_telegram_buttons("Area Clear: Auto-Reset")
+                            
                         persistent_alert_active = prompt_sent = False
                 else:
                     stable_identity = self._get_stable_identity()
@@ -439,16 +488,23 @@ class SmartGuardDetector:
                                                         [{"text": "🚨 Sound Alarm", "callback_data": "force_alarm"}]
                                                     ]
                                                 }
-                                                requests.post(
+                                                
+                                                time_to_auto = int(MAJOR_ALERT_AT_SEC - PROMPT_AT_SEC)
+                                                caption_text = f"❓ Unknown person detected. Authorize?\n⏳ Auto-alarm in {time_to_auto} seconds..."
+                                                
+                                                resp = requests.post(
                                                     f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto",
                                                     data={
                                                         "chat_id": TELEGRAM_CHAT_ID,
-                                                        "caption": "❓ Unknown person detected. Authorize?",
+                                                        "caption": caption_text,
                                                         "reply_markup": json.dumps(keyboard)
                                                     },
                                                     files={"photo": f},
                                                     timeout=10
                                                 )
+                                                
+                                                if resp.status_code == 200:
+                                                    self.last_prompt_message_id = resp.json().get("result", {}).get("message_id")
                                         except Exception:
                                             pass
                                     threading.Thread(target=_send_photo, daemon=True).start()
@@ -457,15 +513,38 @@ class SmartGuardDetector:
                                 self.is_alarm_active = True
                                 self._log_event("Security Breach", "Tier 2 Alarm Triggered")
 
+                                # --- CLEANUP OLD PROMPT BUTTONS ---
+                                if self.last_prompt_message_id and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                                    def _remove_old_buttons():
+                                        try:
+                                            requests.post(
+                                                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/editMessageCaption",
+                                                json={
+                                                    "chat_id": TELEGRAM_CHAT_ID,
+                                                    "message_id": self.last_prompt_message_id,
+                                                    "caption": "🚨 Time expired. Auto-escalated to Alarm.",
+                                                    "reply_markup": {"inline_keyboard": []}
+                                                },
+                                                timeout=5
+                                            )
+                                        except Exception:
+                                            pass
+                                    threading.Thread(target=_remove_old_buttons, daemon=True).start()
+                                    self.last_prompt_message_id = None
+                                # ---------------------------
+
                                 if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
                                     def _send_siren_alert():
                                         try:
                                             kb = {"inline_keyboard": [[{"text": "🔇 Disarm Siren", "callback_data": "disarm_system"}]]}
-                                            requests.post(
+                                            resp = requests.post(
                                                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
                                                 json={"chat_id": TELEGRAM_CHAT_ID, "text": "🚨 ALARM TRIGGERED! Siren is sounding.", "reply_markup": kb},
                                                 timeout=5
                                             )
+                                            # Track this specific text message ID
+                                            if resp.status_code == 200:
+                                                self.last_siren_message_id = resp.json().get("result", {}).get("message_id")
                                         except Exception:
                                             pass
                                     threading.Thread(target=_send_siren_alert, daemon=True).start()
